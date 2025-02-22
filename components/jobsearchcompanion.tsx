@@ -1,15 +1,15 @@
-"use client"; // Add this at the top of the file
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Timer, Pause, Play, RefreshCw } from 'lucide-react';
+import { Timer, Pause, Play, RefreshCw, Music2, ActivitySquare, Heart } from 'lucide-react';
 
-interface Notes {
-  draws: string;
-  concerns: string;
-  skills: string;
-  bodyFeel: string;
+interface RegulationStrategy {
+  type: 'movement' | 'music' | 'presence';
+  Icon: React.ComponentType<any>;
+  title: string;
+  prompts: string[];
 }
 
 interface Step {
@@ -18,48 +18,101 @@ interface Step {
   field: keyof Notes;
 }
 
+interface Notes {
+  regulation: string;
+  draws: string;
+  concerns: string;
+  skills: string;
+  bodyFeel: string;
+}
+
+const regulationStrategies: RegulationStrategy[] = [
+  {
+    type: 'movement',
+    Icon: ActivitySquare,
+    title: 'Movement Break',
+    prompts: [
+      '30 seconds of gentle stretching',
+      'Walk around your space',
+      'Quick set of jumping jacks',
+      'Stand and shake out your arms and legs'
+    ]
+  },
+  {
+    type: 'music',
+    Icon: Music2,
+    title: 'Music Moment',
+    prompts: [
+      'Put on your energizing playlist',
+      'Take 3 deep breaths with the rhythm',
+      'Drum your fingers to the beat',
+      'Let the music ground you in your body'
+    ]
+  },
+  {
+    type: 'presence',
+    Icon: Heart,
+    title: 'Mindful Presence',
+    prompts: [
+      'Notice 3 things you can hear',
+      'Feel your feet on the ground',
+      'Follow your breath for 3 cycles',
+      'Scan your body from head to toe'
+    ]
+  }
+];
+
+const steps: Step[] = [
+  {
+    title: "Body Check-in",
+    prompt: "Take a moment to notice how your body feels right now. Any tension or ease?",
+    field: "bodyFeel"
+  },
+  {
+    title: "What Draws You?",
+    prompt: "What aspects of this role spark your interest or energy? Notice any physical response as you consider this.",
+    field: "draws"
+  },
+  {
+    title: "Concerns or Questions",
+    prompt: "What makes you hesitate? Notice if your body tenses when thinking about certain aspects - this is valuable information.",
+    field: "concerns"
+  },
+  {
+    title: "Skills Overlap",
+    prompt: "What skills do you already have? Remember times you've successfully used these skills.",
+    field: "skills"
+  }
+];
+
 const JobSearchCompanion: React.FC = () => {
-  const [time, setTime] = useState<number>(25 * 60); // 25 minutes in seconds
+  const [time, setTime] = useState<number>(25 * 60);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(0);
+  const [showRegulationPrompt, setShowRegulationPrompt] = useState<boolean>(true);
+  const [selectedRegulation, setSelectedRegulation] = useState<RegulationStrategy | null>(null);
   const [notes, setNotes] = useState<Notes>({
+    regulation: '',
     draws: '',
     concerns: '',
     skills: '',
     bodyFeel: ''
   });
 
-  const steps: Step[] = [
-    {
-      title: "Grounding Check-in",
-      prompt: "Take a deep breath. Notice the coffee shop atmosphere. How does your body feel right now?",
-      field: "bodyFeel"
-    },
-    {
-      title: "What Draws You?",
-      prompt: "What aspects of this role spark your interest? No judgment, just note what catches your attention.",
-      field: "draws"
-    },
-    {
-      title: "Concerns or Questions",
-      prompt: "What makes you hesitate or want to know more? Remember, concerns are normal and helpful.",
-      field: "concerns"
-    },
-    {
-      title: "Skills Overlap",
-      prompt: "What skills do you already have that align with this role? Include both technical and soft skills.",
-      field: "skills"
-    }
-  ];
-
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isRunning && time > 0) {
       interval = setInterval(() => {
-        setTime((time) => time - 1);
+        setTime((time) => {
+          if (time % 300 === 0 && time !== 1500) {
+            setShowRegulationPrompt(true);
+          }
+          return time - 1;
+        });
       }, 1000);
     } else if (time === 0) {
       setIsRunning(false);
+      setShowRegulationPrompt(true);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -82,30 +135,26 @@ const JobSearchCompanion: React.FC = () => {
   };
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
-    const { name, value } = e.target;
-    setNotes(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setNotes({
+      ...notes,
+      [e.target.name]: e.target.value
+    });
   };
 
-  const nextStep = (): void => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
+  const selectRegulationStrategy = (strategy: RegulationStrategy): void => {
+    setSelectedRegulation(strategy);
+    setShowRegulationPrompt(false);
   };
 
-  const prevStep = (): void => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+  const getRandomPrompt = (prompts: string[]): string => {
+    return prompts[Math.floor(Math.random() * prompts.length)];
   };
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          <span>Job Analysis Session</span>
+          <span>Job Search Session</span>
           <div className="flex items-center gap-2">
             <Timer className="w-5 h-5" />
             <span className="text-xl font-mono">{formatTime(time)}</span>
@@ -119,6 +168,40 @@ const JobSearchCompanion: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {showRegulationPrompt && (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 className="font-medium mb-3">Regulation Break</h3>
+            <p className="text-sm mb-4">Choose a strategy that feels right for this moment:</p>
+            <div className="flex gap-3">
+              {regulationStrategies.map((strategy) => (
+                <Button
+                  key={strategy.type}
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => selectRegulationStrategy(strategy)}
+                >
+                  <strategy.Icon className="w-4 h-4 mr-2" />
+                  {strategy.title}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {selectedRegulation && !showRegulationPrompt && (
+          <div className="mb-6 p-4 bg-green-50 rounded-lg">
+            <h3 className="font-medium mb-2">{selectedRegulation.title}</h3>
+            <p className="text-sm">{getRandomPrompt(selectedRegulation.prompts)}</p>
+            <Button 
+              className="mt-3"
+              variant="outline"
+              onClick={() => setSelectedRegulation(null)}
+            >
+              Done
+            </Button>
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="bg-slate-50 p-4 rounded-lg">
             <h3 className="font-medium mb-2">{steps[currentStep].title}</h3>
@@ -134,14 +217,14 @@ const JobSearchCompanion: React.FC = () => {
           
           <div className="flex justify-between mt-4">
             <Button 
-              onClick={prevStep}
+              onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
               disabled={currentStep === 0}
               variant="outline"
             >
               Previous
             </Button>
             <Button 
-              onClick={nextStep}
+              onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}
               disabled={currentStep === steps.length - 1}
             >
               Next
